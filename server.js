@@ -5,34 +5,33 @@ const OpenAI = require('openai');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ミドルウェア設定
 app.use(cors());
 app.use(express.json());
 
-// OpenAIクライアントを初期化（APIキーはRenderの環境変数で設定）
+// OpenAIクライアント初期化（Renderの環境変数を使用）
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// 雑談エンドポイント
+// POST /chat にJSONでメッセージを送信 → AIの返答をJSONで返す
 app.post('/chat', async (req, res) => {
-  const userMessage = req.body.message;
+  const { message } = req.body;
 
-  if (!userMessage) {
-    return res.status(400).json({ error: 'メッセージが必要です。' });
+  if (!message || typeof message !== 'string') {
+    return res.status(400).json({ error: 'message（文字列）が必要です。' });
   }
 
   try {
-    const completion = await openai.chat.completions.create({
+    const response = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: userMessage }],
+      messages: [{ role: 'user', content: message }],
     });
 
-    const reply = completion.choices[0].message.content;
-    res.json({ reply });
+    const reply = response.choices[0].message.content;
+    res.json({ reply }); // JSON形式で返答
   } catch (error) {
-    console.error('OpenAIエラー:', error);
-    res.status(500).json({ error: 'OpenAIとの通信に失敗しました。' });
+    console.error('OpenAI APIエラー:', error);
+    res.status(500).json({ error: 'AIの返答取得に失敗しました。' });
   }
 });
 
