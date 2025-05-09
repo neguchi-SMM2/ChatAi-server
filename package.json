@@ -1,7 +1,7 @@
 {
-  "name": "ai-chat-server",
+  "name": "openai-websocket-server",
   "version": "1.0.0",
-  "description": "A simple Express server that connects to OpenAI's chat API",
+  "description": "Express + WebSocket + OpenAI チャットサーバー",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -9,9 +9,10 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.2",
-    "openai": "^4.0.0"
+    "ws": "^8.13.0",
+    "openai": "^4.25.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18"
   }
 }
