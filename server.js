@@ -1,74 +1,70 @@
 const express = require('express');
-const cors = require('cors');
-const { OpenAI } = require('openai');
 const http = require('http');
 const WebSocket = require('ws');
+const cors = require('cors');
+const axios = require('axios');
+require('dotenv').config();
+
+const HF_API_KEY = process.env.HF_API_KEY;
+const HF_API_URL = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium';
 
 const app = express();
 app.use(cors());
-app.use(express.json());
-
-// OpenAIクライアント初期化
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// HTTP POST /chat エンドポイント（任意）
-app.post('/chat', async (req, res) => {
-  const { message } = req.body;
-
-  if (!message || typeof message !== 'string') {
-    return res.status(400).json({ error: 'message（文字列）が必要です。' });
-  }
-
-  try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: message }],
-    });
-
-    const reply = response.choices[0].message.content;
-    res.json({ reply });
-  } catch (error) {
-    console.error('OpenAI APIエラー:', error);
-    res.status(500).json({ error: 'AIの返答取得に失敗しました。' });
-  }
-});
-
-// WebSocketサーバーのセットアップ
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 wss.on('connection', (ws) => {
-  console.log('クライアントが接続しました');
+  console.log('WebSocket クライアント接続');
 
-  ws.on('message', async (data) => {
+  const chatHistory = [];
+
+  ws.on('message', async (raw) => {
+    let parsed;
     try {
-      // クライアントからJSON文字列を受け取る
-      const { message } = JSON.parse(data);
+      parsed = JSON.parse(raw.toString());
+    } catch {
+      ws.send('[エラー] JSON形式で送信してください');
+      return;
+    }
 
-      if (typeof message !== 'string') {
-        return ws.send(JSON.stringify({ error: '無効なメッセージ形式です。' }));
-      }
+    const { personality, message } = parsed;
+    if (!message) {
+      ws.send('[エラー] メッセージが空です');
+      return;
+    }
 
-      // OpenAI に送信
-      const response = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: message }],
-      });
+    chatHistory.push({ role: 'user', content: message });
 
-      const reply = response.choices[0].message.content;
+    let prompt = personality ? `${personality}\n` : '';
+    chatHistory.forEach((msg) => {
+      prompt += `${msg.role === 'user' ? 'ユーザー' : 'AI'}: ${msg.content}\n`;
+    });
+    prompt += 'AI:';
 
-      // 結果をクライアントにJSONで返す
-      ws.send(JSON.stringify({ reply }));
+    try {
+      const response = await axios.post(
+        HF_API_URL,
+        { inputs: prompt },
+        {
+          headers: {
+            Authorization: `Bearer ${HF_API_KEY}`,
+          },
+        }
+      );
+
+      const reply = response.data.generated_text?.replace(/.*AI:/s, '').trim() || '[AI応答なし]';
+
+      chatHistory.push({ role: 'ai', content: reply });
+
+      ws.send(reply);
     } catch (error) {
-      console.error('WebSocketエラー:', error);
-      ws.send(JSON.stringify({ error: 'AIの応答取得に失敗しました。' }));
+      console.error('APIエラー:', error.message);
+      ws.send('[エラー] AI応答の取得に失敗しました。');
     }
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`サーバーがポート${PORT}で起動しました`);
+  console.log(`サーバー起動中: http://localhost:${PORT}`);
 });
