@@ -6,7 +6,7 @@ const axios = require('axios');
 require('dotenv').config();
 
 const HF_API_KEY = process.env.HF_API_KEY;
-const HF_API_URL = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium';
+const HF_API_URL = 'https://api-inference.huggingface.co/models/gpt-2';
 
 const app = express();
 app.use(cors());
