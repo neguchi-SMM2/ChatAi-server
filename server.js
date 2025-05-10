@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.json());
 
 const HF_API_KEY = process.env.HF_API_KEY;
-const MODEL = 'microsoft/DialoGPT-medium';
+const MODEL = 'HuggingFaceH4/zephyr-7b-beta';
 const API_URL = `https://api-inference.huggingface.co/models/${MODEL}`;
 
 // HTTP POST エンドポイント（REST API用）
